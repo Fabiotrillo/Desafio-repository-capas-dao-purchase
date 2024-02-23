@@ -13,7 +13,7 @@ import { connectDB } from './config/connectDB.js';
 import {ProductRouter} from './routes/products.router.js'
 import {CartRouter} from './routes/carts.router.js'
 import { UserRouter } from './routes/users.router.js';
-import { OrderRouter } from './routes/order.router.js';
+
 
 
 
@@ -47,7 +47,6 @@ app.use("/api/sessions", sessionRouter);
 app.use("/api/products", ProductRouter);
 app.use("/api/carts", CartRouter);
 app.use("/api/users", UserRouter);
-app.use("/api/orders", OrderRouter);
 
 inicializePassport();
 app.use(passport.initialize());

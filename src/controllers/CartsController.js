@@ -1,5 +1,7 @@
 
-import { CartService } from "../repository/index.js";
+import { CartService, ProductService } from "../repository/index.js";
+import  {ticketsModel}  from "../dao/db/models/tickets.model.js";
+import { v4 as uuidv4 } from 'uuid';
 
 
 class CartsController {
@@ -40,8 +42,8 @@ class CartsController {
 
   static createCarts = async (req, res) => {
     try {
-      const { products, quantity } = req.body;
-        const cart = await CartService.createCarts({ products, quantity });
+      
+        const cart = await CartService.createCarts({});
         res.status(201).json({
             status: "success",
             msg: "Carrito creado",
@@ -56,12 +58,12 @@ class CartsController {
     const cid = req.params.cid;
     const pid = req.params.pid; 
   
-    if (!cid || !pid || !req.body.quantity) {
+    if (!cid || !pid) {
       return res.status(400).json({ error: "Datos incompletos" });
     }
   
     try {
-      const result = await CartService.addProductToCart(cid, pid, req.body.quantity);
+      const result = await CartService.addProductToCart(cid, pid);
       res.status(200).json({
         status: result.status,
         msg: result
@@ -71,6 +73,53 @@ class CartsController {
       res.status(500).json({ error: "Error interno del servidor" });
     }
   };
+
+
+
+  static finalizePurchase =  async (req,res) => {
+    try {
+
+        const cartId = req.params.cid;
+        const cart = await CartService.getCartByID(cartId);
+        if(cart){
+            if(!cart.products.length){
+                return res.send("es necesario que agrege productos antes de realizar la compra")
+            }
+            const ticketProducts = [];
+            const rejectedProducts = [];
+            for(let i=0; i<cart.products.length;i++){
+                const cartProduct = cart.products[i];
+                const productDB = await ProductService.getProductByID(cartProduct.product._id);
+                if(!productDB){
+                  return res.status(404).json({
+                    message:'No se encontro el producto'
+                  })
+                  
+                }
+                //comparar la cantidad de ese producto en el carrito con el stock del producto
+                if(cartProduct.quantity<=productDB.stock){
+                    ticketProducts.push(cartProduct);
+                } else {
+                    rejectedProducts.push(cartProduct);
+                }
+            }
+        
+            const newTicket = {
+                code:uuidv4(),
+                purchase_datetime: new Date(),
+                amount:500,
+                purchaser:'email@email.com'
+            }
+            
+            const ticketCreated = await ticketsModel.create(newTicket);
+            res.send(ticketCreated)
+        } else {
+            res.send("el carrito no existe")
+        }
+    } catch (error) {
+        res.send(error.message)
+    }
+  }
 
   static deleteCart = async (req, res) => {
     const cid = req.params.cid;

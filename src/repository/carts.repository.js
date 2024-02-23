@@ -26,6 +26,7 @@ class CartRepository {
         throw new Error(`Error al crear el carrito: ${error.message}`);
       }
     }
+
   
     async addProductToCart(cartId, productId, quantity) {
         try {

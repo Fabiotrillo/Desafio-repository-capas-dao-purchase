@@ -2,6 +2,8 @@ import cartModel from "../db/models/carts.model.js"
 import productModel from "../db/models/products.model.js";
 
 
+
+
 class CartManager {
     getCarts = async () => {
         try {
@@ -18,10 +20,10 @@ class CartManager {
         return cart;
     }
 
-    async createCarts(products, quantity) {
+    async createCarts() {
         try {
 
-            const result = await cartModel.create({ products, quantity })
+            const result = await cartModel.create({})
             return result;
         } catch (error) {
             console.error('Error al intentar crear el carrito:', error.message);
@@ -68,12 +70,12 @@ class CartManager {
             throw new Error('Error al intentar agregar producto al carrito');
         }
     }
-    async removeProductFromCart(cartId, productId) {
+    async removeProductFromCart(cid, productId) {
         try {
-            const cart = await cartModel.findById(cartId).populate('products.product');
+            const cart = await cartModel.findById(cid).populate('products.product');
 
             if (!cart) {
-                throw new Error(`El carrito con el id ${cartId} no existe`);
+                throw new Error(`El carrito con el id ${cid} no existe`);
             }
 
             const productIndex = cart.products.findIndex(item => item.product._id.equals(productId));
@@ -97,68 +99,6 @@ class CartManager {
         } catch (error) {
             console.error('Error al intentar eliminar producto del carrito:', error.message);
             throw new Error('Error al intentar eliminar producto del carrito');
-        }
-    }
-
-
-    async finalizePurchase(cartId, purchaserEmail) {
-        try {
-            const cart = await cartModel.findById(cartId).populate('products.product');
-
-            if (!cart) {
-                throw new Error(`El carrito con el id ${cartId} no existe`);
-            }
-
-            const failedProducts = await Promise.all(
-                cart.products.map(async (cartProduct) => {
-                    const productId = cartProduct.product._id;
-                    const quantity = cartProduct.quantity;
-
-                    const product = await productModel.findById(productId);
-
-                    if (!product || product.stock < quantity) {
-                        return productId; // Producto no disponible
-                    }
-
-                    // Actualizar el stock del producto
-                    product.stock -= quantity;
-                    await product.save();
-
-                    return null; // Producto disponible y stock actualizado
-                })
-            );
-
-            // Filtrar los productos fallidos
-            const successfulProducts = cart.products.filter(
-                (cartProduct, index) => failedProducts[index] === null
-            );
-
-            // Crear el ticket
-            const ticket = new Ticket({
-                code: generateUniqueCode(), // Necesitas implementar la generación de códigos únicos
-                purchase_datetime: new Date(),
-                amount: calculateTotalAmount(successfulProducts),
-                purchaser: purchaserEmail,
-            });
-
-            await ticket.save();
-
-            // Actualizar el carrito con los productos que no pudieron comprarse
-            cart.products = failedProducts.map((productId) => ({
-                product: productId,
-                quantity: 1, // O la cantidad correcta
-            }));
-
-            await cart.save();
-
-            return {
-                success: true,
-                ticket: ticket,
-                failedProducts: failedProducts.filter((productId) => productId !== null),
-            };
-        } catch (error) {
-            console.error('Error al intentar finalizar la compra:', error.message);
-            throw new Error('Error al intentar finalizar la compra');
         }
     }
 
